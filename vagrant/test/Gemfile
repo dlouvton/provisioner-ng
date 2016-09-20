@@ -1,0 +1,13 @@
+group :plugins do
+  gem 'vagrant-aws', :git => "https://github.com/dlouvton/vagrant-aws.git"
+  gem "unf"
+  gem 'vagrant-managed-servers', :git => "https://github.com/tknerr/vagrant-managed-servers.git"
+  gem 'nugrant', :git => "https://github.com/maoueh/nugrant.git"
+end
+
+group :development do
+  # We depend on Vagrant for development, but we don't add it as a
+  # gem dependency because we expect to be installed within the
+  # Vagrant environment itself using `vagrant plugin`.
+  gem "vagrant", :git => "git://github.com/mitchellh/vagrant.git"
+end

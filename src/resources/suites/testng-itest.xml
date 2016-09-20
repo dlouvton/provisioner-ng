@@ -1,0 +1,13 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="badger">
+	<listeners>
+		<listener class-name="com.dlouvton.badger.ATAM.listeners.RequiresSkipListener" />
+	</listeners>
+	<test name="badger-itest">
+		<packages>
+			<package name="com.dlouvton.itest.*">
+				<exclude name="com.dlouvton.itest.utils.*"></exclude>
+			</package>
+		</packages>
+	</test>
+</suite>

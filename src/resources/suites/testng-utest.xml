@@ -1,0 +1,8 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="unit-tests">
+	<test name="badger-utils-utest">
+		<packages>
+			<package name="com.dlouvton.itest.utils.*" />
+		</packages>
+	</test>
+</suite>

@@ -1,0 +1,23 @@
+{
+	"name": "kafka-zk-funnel",
+	"working_dir":"vagrant",
+	"provider":"aws",
+	"env" : 
+	[
+		{
+			"name" : "zookeeper",
+			"expose": "HostName,IPAddress",
+			"before": ["kafka"]
+		},
+		{
+			"name" : "kafka",
+			"expose": "HostName,IPAddress",
+			"before": ["funnel"]
+		},
+		{
+			"name" : "funnel",
+			"expose": "HostName,IPAddress"
+		}
+	]
+}
+

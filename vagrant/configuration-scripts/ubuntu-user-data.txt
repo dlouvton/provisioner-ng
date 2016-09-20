@@ -1,0 +1,28 @@
+#!/bin/bash
+apt-get update
+apt-get -q -y install language-pack-en
+locale-gen en_US
+apt-get -q -y install unzip
+apt-get -q -y install puppet-common
+sed -i 's/^mesg n$/tty -s \&\& mesg n/g' /root/.profile
+
+CLOUD_USER=appuser
+
+id -u ${CLOUD_USER} 2>/dev/null || useradd -m ${CLOUD_USER} -s /bin/bash
+
+if [ ! -d /home/${CLOUD_USER}/.ssh ] ; then
+    mkdir -p /home/${CLOUD_USER}/.ssh
+    chmod 0700 /home/${CLOUD_USER}/.ssh
+fi
+
+curl -f http://<cloud-url>/latest/meta-data/public-keys/0/openssh-key > /tmp/aws-key 2>/dev/null
+if [ $? -eq 0 ]; then
+    cat /tmp/aws-key > /home/${CLOUD_USER}/.ssh/authorized_keys
+    chmod 0600 /home/${CLOUD_USER}/.ssh/authorized_keys
+    chown ${CLOUD_USER}:${CLOUD_USER} /home/${CLOUD_USER} -R
+    rm -f /tmp/aws-key
+    echo "Successfully retrieved AWS public key from instance metadata"
+fi
+
+# Allow sudo access for the user
+echo "${CLOUD_USER} ALL=NOPASSWD: ALL" >> /etc/sudoers

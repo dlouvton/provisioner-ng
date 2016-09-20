@@ -1,0 +1,12 @@
+{
+                "name": "quick-base-no-install",
+                "working_dir":"vagrant",
+                "provider":"aws",
+                "env" :
+                [
+                                {
+                                                "name" : "base"
+                                }
+                ]
+}
+

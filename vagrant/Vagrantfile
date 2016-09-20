@@ -1,0 +1,145 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  # Constants for most roles
+  baseAmi = "ami-000000000002233"
+  baseInstanceType = "m1.small"
+  mediumInstanceType = "m1.medium"
+  baseSshUsername = "cloud-user"
+  baseInstanceReadyTimeout = 600
+
+    # Constants for aws roles
+  awsBox = "dummy-aws"
+  awsBoxUrl = "https://github.com/mitchellh/vagrant-aws/raw/master/dummy.box"
+
+  # Constants for managed roles
+  managedBox = "dummy-managed"
+  managedBoxUrl = "https://github.com/tknerr/vagrant-managed-servers/raw/master/dummy.box"
+  managedAmi = "ami-000"
+  managedServerIP = "127.0.0.1"
+
+  # Default aws properties
+  config.vm.provider :aws do |aws, override|
+    aws.access_key_id = config.user.aws.access_key
+    aws.secret_access_key = config.user.aws.secret_key
+    aws.keypair_name = config.user.aws.private_key
+    aws.endpoint = config.user.aws.endpoint
+    override.ssh.private_key_path = config.user.aws.private_key_path
+  end
+
+  # Default Managed servers properties
+  config.vm.provider :managed do |man, override|
+    override.ssh.private_key_path =config.user.aws.private_key_path
+  end
+
+  config.user.defaults = {
+    "aws" => {
+      "private_key" => corePrivateKeyName,
+      "private_key_path" => corePrivateKeyPath,
+      "endpoint" => "http://<url>/ec2/"
+    },
+    "components" => {},
+    "managed" => {}
+  }
+
+
+  roles = {
+    "graphite" =>
+       {  :ami => baseAmi, :instance_type => mediumInstanceType, :instance_ready_timeout => baseInstanceReadyTimeout,
+      :username => baseSshUsername, :manifest_file => "graphite.pp", :shell_path => "configuration-scripts/configure-graphite.sh" },
+    "kafka" =>
+       {  :ami => baseAmi, :instance_type => baseInstanceType, :instance_ready_timeout => baseInstanceReadyTimeout,
+      :username => baseSshUsername, :manifest_file => "kafka.pp", :shell_path => "configuration-scripts/configure-kafka.sh" },
+    "zookeeper" =>
+       {  :ami => baseAmi, :instance_type => baseInstanceType, :instance_ready_timeout => baseInstanceReadyTimeout,
+      :username => baseSshUsername, :manifest_file => "zookeeper.pp", :shell_path => "configuration-scripts/configure-zookeeper.sh", :install_from => "rps::freeze" },
+
+    #Add roles here
+    }
+
+  config.user.components.each do |name, cfg|
+    config.vm.define name do |component|
+      role = roles[cfg.role]
+      config.vm.provider :aws do |aws, override|
+        component.vm.box = awsBox
+        component.vm.box_url = awsBoxUrl
+        aws.ami = role[:ami]
+        aws.instance_type = role[:instance_type]
+        aws.instance_ready_timeout = role[:instance_ready_timeout]
+        override.ssh.username = role[:username]
+        aws.keypair_name = role[:private_key_name]
+        override.ssh.private_key_path = role[:private_key_path]
+        override.ssh.username = role[:username]
+        if role[:private_key_name].nil?
+          aws.keypair_name = config.user.aws.private_key
+          override.ssh.private_key_path = config.user.aws.private_key_path
+        end
+        aws.tags = {
+          "component" => name,
+          "static" => config.user.components[name].has_key?("static") ? config.user.components[name].static : "false",
+          "role" => config.user.components[name].role,
+          "started_from" => `hostname`.strip,
+          "provisioned_at" => Time.now.strftime("%Y-%m-%d %H:%M"),
+          "badger_ver" => `basename $(readlink -f ..)`,
+          "user" => ENV['TAG_USERNAME'],
+          "host_key" => config.user.aws.private_key,
+          "model" => config.user.has_key?("model") ? config.user.model : "none"
+        }
+       end
+      config.vm.provision :puppet do |puppet|
+        puppet.manifests_path = "manifests"
+        puppet.manifest_file = role[:manifest_file]
+        puppet.module_path = "modules"
+        puppet.facter = {"install_from" => cfg.has_key?("install_from") ? cfg.install_from : ( role[:install_from].nil?  ? "rps::patch" : role[:install_from] ) }
+      end
+      config.vm.provision "shell" do |shell|
+        shell.path = role[:shell_path]
+        envID=name.to_s.scan(/[0-9]+$/).join
+        componentName=name.to_s.gsub(/__[0-9]+$/,'')
+        shell.args = ".environment#{envID}.properties #{componentName}"
+        shell.privileged = false
+      end
+    end
+  end
+
+  config.user.managed.each do |name, cfg|
+    config.vm.define name do |component|
+      role = roles[cfg.role]
+      config.vm.provider :managed do |man, override|
+        component.vm.box = managedBox
+        component.vm.box_url = managedBoxUrl
+        if cfg.server.include?("hostname")
+         if config.user.has_key?(cfg.server)
+          man.server = config.user[cfg.server]
+         else
+          man.server = managedServerIP
+         end
+        else
+         man.server = cfg.server
+        end
+
+        override.ssh.username = role[:username]
+        override.ssh.private_key_path = defined?(cfg.private_key_path) ? cfg.private_key_path : config.user.aws.private_key_path
+      end
+      config.vm.provision :puppet do |puppet|
+        puppet.manifests_path = "manifests"
+        puppet.manifest_file = role[:manifest_file]
+        puppet.module_path = "modules"
+        puppet.facter = {"install_from" => cfg.has_key?("install_from") ? cfg.install_from : "rps::main"}
+      end
+      config.vm.provision "shell" do |shell|
+         shell.path = role[:shell_path]
+         envID=name.to_s.scan(/[0-9]+$/).join
+         componentName=name.to_s.gsub(/__[0-9]+$/,'')
+         shell.args = ".environment#{envID}.properties #{componentName}"
+         shell.privileged = false
+      end
+      config.vm.provider :aws do |aws, override|
+        aws.ami = "ami-0000"
+      end
+    end
+  end
+
+end

@@ -1,0 +1,33 @@
+{
+"name": "utest",
+"working_dir":"vagrant/test",
+"provider":"dummy",
+"env" : [
+  {
+      "name" : "a",
+      "number": "123",
+      "expose": "HostName,Port",
+      "static": "true"
+  },
+  {
+      "name" : "b",
+      "before": [ "a" ],
+      "null": null,
+      "expose": "HostName,Port"
+  },
+  {
+      "name" : "c",
+      "before": [ "b"  ],
+      "test" : "<<RANDOM>>",      
+      "provider": "dummyManaged",
+      "expose": "HostName,Port"
+  },
+  {
+      "name" : "d",
+      "before": [ "a", "b|c" ],
+      "null": null,
+      "number": 123,
+      "expose": "HostName,Port"
+  }
+]
+}

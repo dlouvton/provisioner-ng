@@ -1,0 +1,40 @@
+<assembly>
+	<id>common-files</id>
+
+	<formats>
+		<format>zip</format>
+	</formats>
+
+	<fileSets>
+		<fileSet>
+			<directory>vagrant</directory>
+			<includes>
+				<include>**/*</include>
+			</includes>
+		</fileSet>
+
+		<fileSet>
+			<directory>scripts</directory>
+			<includes>
+				<include>*.sh</include>
+				<include>*.py</include>
+			</includes>
+		</fileSet>
+
+		<fileSet>
+			<directory>models</directory>
+			<includes>
+				<include>**/*.json</include>
+			</includes>
+		</fileSet>
+
+		<fileSet>
+			<directory></directory>
+			<includes>
+				<include>default.properties</include>
+				<include>*.sh</include>
+				<include>badgerCli</include>
+			</includes>
+		</fileSet>
+	</fileSets>
+</assembly>

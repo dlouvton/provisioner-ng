@@ -1,0 +1,20 @@
+{
+	"name": "kafka-zk",
+	"working_dir":"vagrant",
+	"provider":"aws",
+	"env" : 
+	[
+		{
+			"name" : "zookeeper",
+			"expose": "HostName,IPAddress",
+			"install_from": "rps::patch",
+			"before": ["kafka"]
+		},
+		{
+			"name" : "kafka",
+			"install_from": "rps::patch",
+			"expose": "HostName,IPAddress"
+		}
+	]
+}
+

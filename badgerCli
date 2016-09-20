@@ -1,0 +1,232 @@
+#!/usr/bin/python
+# encoding: utf-8
+'''
+ -- Badger Client 1.0
+
+ Command line interface for Badger, allowing running models and tests against aws 
+
+@author:     dlouvton
+
+@copyright:  2014 dlouvton.com. All rights reserved.
+
+'''
+
+import sys , os, time
+from argparse import ArgumentParser
+from argparse import RawTextHelpFormatter
+try:
+    import requests
+except ImportError, e:
+    print "Please install the Python package 'requests' using 'pip install requests' or 'easy_install requests'"
+    print "The root cause is: "
+    raise e
+
+
+
+__all__ = []
+__version__ = 1.0
+__date__ = '2014-10-14'
+
+
+
+class BadgerApiException(Exception):
+    pass
+
+class CLIError(Exception):
+    '''Generic exception to raise and log different fatal errors.'''
+    def __init__(self, msg):
+        super(CLIError).__init__(type(self))
+        self.msg = "E: %s" % msg
+    def __str__(self):
+        return self.msg
+    def __unicode__(self):
+        return self.msg
+
+def main(argv=None): # IGNORE:C0111
+    newenv = {}
+    for line in os.popen('. ~/.remote-badger-config >&/dev/null; env'):
+       try:
+           k,v = line.strip().split('=',1)
+       except:
+           continue  # bad line format, skip it
+       newenv[k] = v
+    os.environ.update(newenv)
+    
+    '''Command line options.'''
+
+    if argv is None:
+        argv = sys.argv
+    else:
+        sys.argv.extend(argv)
+
+    program_name = os.path.basename(sys.argv[0])
+    program_version = "v%s" % __version__
+    program_shortdesc = __import__('__main__').__doc__.split("\n")[1]
+    program_description = '''%s
+
+  Created by dlouvton on %s.
+  Copyright 2014 dlouvton.com. All rights reserved.
+
+USAGE
+''' % (program_shortdesc, str(__date__))
+
+    try:
+        # Setup argument parser
+        parser = ArgumentParser(description=program_description, formatter_class=RawTextHelpFormatter)
+        parser.add_argument("-x", "--verbose", dest="verbose", help="set verbosity level [default: %(default)s]", type=bool, default=True)
+        parser.add_argument("-u", "--server-url", dest="server_url", help="url of Badger server. [default: %(default)s]", default='http://'+os.getenv('BADGER_SERVER_URL', 'localhost') )
+        parser.add_argument("-m", "--model", dest="model", help="model name. [default: %(default)s]", default="kafka-zk.json" )
+        parser.add_argument("-e", "--environment-id", dest="environment_id", help="environment ID. [default: %(default)s]", default=os.getenv('ENVIRONMENT_ID', '1') )
+        parser.add_argument("-s", "--script", dest="script", help="script name to run. [default: %(default)s]", default="None" )
+        parser.add_argument("-c", "--component", dest="component", help="Run the script against this component. [default: %(default)s]", default="None" )
+        parser.add_argument("-f", "--upload-file", dest="file_to_upload", help="Upload this file to mongo. [default: %(default)s]", default="None" )
+        parser.add_argument(dest="action", help=
+"""
+action can be one of the following:
+start: start a model given by --model
+listModels: list available models
+destroy: destroy the environment given by --environment-id (not including static components)
+forceDestroyAll: destroy all components started from this server
+forceDestroyModel: destroy the environment given by --environment-id
+listEnvironments: list running environments
+describeEnvironment: describe the environment given by --environment-id, including provision status and components status
+waitUntilEnvironmentReady: poll describeEnvironment until it's in status 'READY'
+describeProperties: get the properties  (key-value pairs) that tests can use
+describeStatus: get the global provisioner status
+describeLog: get the provisioner log
+describeVersion: get the version manifest
+describeScripts: get the existing scripts
+runTests: run included testNG tests
+runScript: run a script, given by --script, against a component, given by --component
+postToMongo: upload test results, given by --upload-file, to mongodb
+""")
+
+        # Process arguments
+        args = parser.parse_args() 
+        
+        # Call the Badger API service with the args
+        badgerAction(args)       
+        
+    except KeyboardInterrupt:
+        ### handle keyboard interrupt ###
+        return 0
+    except Exception, e:
+        indent = len(program_name) * " "
+        sys.stderr.write(program_name + ": " + repr(e) + "\n")
+        sys.stderr.write(indent + "  for help use --help\n")
+        return 2
+
+def badgerAction(args):
+    action = args.action
+    verbose = args.verbose
+    serverUrl = args.server_url
+    model = args.model
+    envID = args.environment_id
+    script = args.script
+    component = args.component
+    file_to_upload = args.file_to_upload
+    
+    urlPrefix=serverUrl+"/v1"
+    response = None
+
+    try:
+        if action == "start":
+            url = "{0}/model/{1}?action=start&envID={2}".format(urlPrefix, model, envID)
+            response = requests.get(url)
+        elif action == "listModels":
+            url = "{0}/model".format(urlPrefix)
+            response = requests.get(url)
+        elif action == "destroy":
+            url = "{0}/environment/{1}".format(urlPrefix, envID)
+            response = requests.delete(url)
+        elif action == "forceDestroyAll":
+            url = "{0}/environment/{1}/component?action=force_destroy_all".format(urlPrefix, envID)
+            response = requests.get(url)
+        elif action == "forceDestroyModel":
+            url = "{0}/environment/{1}/component?action=force_destroy_model".format(urlPrefix, envID)
+            response = requests.get(url)
+        elif action == "listEnvironments":
+            url = "{0}/environment".format(urlPrefix)
+            response = requests.get(url)
+        elif action == "describeEnvironment":
+            url = "{0}/environment/{1}".format(urlPrefix, envID)
+            response = requests.get(url)
+            print "environmentStatus="+response.json()["environmentStatus"]
+        elif action == "describeScripts":
+            url = "{0}/environment/{1}/script".format(urlPrefix, envID)
+            response = requests.get(url)
+        elif action == "waitUntilEnvironmentReady":
+            url = "{0}/environment/{1}".format(urlPrefix, envID)
+            retries = 0
+            while True and retries < 30:
+                try:
+                    response = requests.get(url)
+                    environmentStatus = response.json()["environmentStatus"]
+                except Exception:
+                    print "Error: could not parse environmentStatus. did you start a model?"
+                    sys.exit(1)
+                if environmentStatus == "READY":
+                    break
+                time.sleep(30)
+                ++retries
+            if retries == 30:
+                print "Timeout: model was not brought up"
+                sys.exit(1)
+        elif action == "describeComponentStatus":
+            url = "{0}/environment/{1}/component".format(urlPrefix, envID)
+            response = requests.get(url)
+        elif action == "runTests":
+            url = "{0}/environment/{1}/test".format(urlPrefix, envID)
+            response = requests.get(url)
+            printScriptResult(response)
+            verbose=False
+        elif action == "describeProperties":
+            url = "{0}/environment/{1}/plain-properties".format(urlPrefix, envID)
+            response = requests.get(url)
+        elif action == "describeStatus":
+            url = "{0}/main".format(urlPrefix)
+            response = requests.get(url)
+        elif action == "describeVersion":
+            url = "{0}/main/about".format(urlPrefix)
+            response = requests.get(url)
+        elif action == "describeLog":
+            url = "{0}/main/about?action=log".format(urlPrefix)
+            response = requests.get(url)
+        elif action == "postToMongo":
+            if file_to_upload == "None":
+                raise ValueError("'file_to_upload' must be provided for the postToMongo action")
+            files = {'file': open(file_to_upload, 'rb')}
+            payload = {'destination': 'mongofs'}
+            url = "{0}/file".format(urlPrefix)
+            response = requests.get(url, params=payload)        
+        elif action == "runScript":
+            if script == "None" or component == "None":
+                raise ValueError("'script' and 'component' must be provided for the runScript action")
+            url = "{0}/environment/{1}/script/{2}?action=run&component={3}".format(urlPrefix, envID, script, component)
+            response = requests.get(url)
+            printScriptResult(response)
+            verbose=False
+        else:
+            raise ValueError("action "+action+" is not supported")  
+    except requests.exceptions.RequestException as e:
+        print "There seem to be a problem with your request. Make sure that the Badger server at "+serverUrl+" is running. If it's not running, do this: './run.sh ssh' to ssh into your server, and './run.sh start-server'"
+        print "The root cause is: "
+        raise e
+    
+    status_code = response.status_code 
+    print "URL: {0}".format(url)
+    if verbose:
+    	print "Badger Response: \nStatus Code: {0}\nResponse Body: {1}".format(status_code, response.text)
+    else:
+    	print "Badger Response: \nStatus Code: {0}\n".format(status_code)
+    if status_code != 200:
+        raise BadgerApiException("The action "+action+" failed with status code "+ str(status_code)) 
+
+def printScriptResult(response):
+    print response.json()["stderr"]
+    print response.json()["stdout"]
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()	
+    sys.exit(main())

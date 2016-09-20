@@ -1,0 +1,15 @@
+target
+.idea
+.settings
+.classpath
+.project
+.config
+*.iml
+logs
+#the following are excluded since they're downloaded from Nexus
+scripts
+models
+vagrant
+default.properties
+badgerCli
+run.sh

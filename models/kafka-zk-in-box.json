@@ -1,0 +1,20 @@
+{
+        "name": "kafka-zk-in-a-box",
+        "working_dir":"vagrant",
+        "provider":"aws",
+        "single-thread-puppet-installation" :"true",
+        "env" :
+        [
+                {
+                        "name" : "zookeeper",
+                        "expose": "HostName,IPAddress",
+                        "before": ["kafka"],
+                        "provider":"managed",
+                        "server" : "kafka_hostname"
+                },
+                {
+                        "name" : "kafka",
+                        "expose": "HostName,IPAddress"
+                }
+        ]
+}

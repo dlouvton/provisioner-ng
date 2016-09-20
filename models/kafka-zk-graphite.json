@@ -1,0 +1,23 @@
+{
+	"name": "kafka-zk-graphite",
+	"working_dir":"vagrant",
+	"provider":"aws",
+	"env" : 
+	[
+		{
+			"name" : "zookeeper",
+			"expose": "HostName,IPAddress",
+			"before": ["kafka"]
+		},
+		{
+			"name" : "kafka",
+			"expose": "HostName,IPAddress",
+			"before": ["graphite"]
+		},
+		{
+			"name" : "graphite",
+			"expose": "HostName,IPAddress"
+		}
+	]
+}
+
