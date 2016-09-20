@@ -1,7 +1,7 @@
 Provisioner-ng
 ==============
 
-Provisioner-ng, provides the framework to deploy environments and run integration tests against multi-node software on AWS and other cloud providers.
+Provisioner-ng, provides the framework to deploy environments and run integration tests (using testng) against multi-node software on AWS and other cloud providers.
 
 ###Develop Provisioner-ng
 To contribute to Provisioner-ng, you may clone this project and import the maven project into Eclipse and install the Eclipse TestNG plugin. Once the project is imported, you can run tests as TestNG tests or execute the goal "mvn test".
@@ -11,7 +11,7 @@ Pre-requisites: make sure you have maven installed.
 
 ```
 git clone https://github.com/dlouvton/provisioner-ng.git
-cd Provisioner-ng
+cd provisioner-ng
 mvn install
 ```
 To import the project to Eclipse, go to File / Import / Maven/ Existing Maven Project, and browse to the Provisioner-ng folder.
@@ -29,15 +29,12 @@ In order to develop an integration test in the Provisioner-ng framework, you wil
 
 ####Creating the Test Project
 
-
 1) Create a new project by running this command on a folder that does not contains a pom.xml.   <br>
 Use the most current Provisioner-ng version for `archetypeVersion` :
 
 ```
-mvn archetype:generate -DgroupId=com.dlouvton.<team-name> -DartifactId=<my-project-name> -DarchetypeVersion=<archetype-version> -DarchetypeGroupId=com.dlouvton.Provisioner-ng -DarchetypeArtifactId=Provisioner-ng-project-archetype -DinteractiveMode=false
+mvn archetype:generate -DgroupId=com.dlouvton.<team-name> -DartifactId=<my-project-name> -DarchetypeVersion=<archetype-version> -DarchetypeGroupId=com.dlouvton.provisioner-ng -DarchetypeArtifactId=provisioner-ng-project-archetype -DinteractiveMode=false
 
-for example:
-mvn archetype:generate -DgroupId=com.dlouvton.Provisioner-ng -DartifactId=Provisioner-ng-itest -DarchetypeVersion=1.3-RELEASE -DarchetypeGroupId=com.dlouvton.Provisioner-ng -DarchetypeArtifactId=Provisioner-ng-project-archetype -DinteractiveMode=false
 ```
 
 2) A new folder was created for you, with the project files, with a sample test case.
@@ -53,7 +50,7 @@ cd <my-project-name>
 You may Add test cases. Your test case MUST extend BaseTest.java
 
 ```
-import com.dlouvton.Provisioner-ng.itest.common.BaseTest;
+import com.dlouvton.provisioner-ng.itest.common.BaseTest;
 ...
 public class ConnectivityTest extends BaseTest {
 ...
